@@ -1,0 +1,16 @@
+{
+  "name": "foodler",
+  "description": "A simple modelling app for UMJI VE450 food 3d printer project.",
+  "scripts": {
+    "start": "parcel serve ./src/index.html",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "parcel": "^2.0.0-nightly.733"
+  },
+  "author": "Wenxuan Zhu",
+  "dependencies": {
+    "file-saver": "^2.0.5",
+    "three": "^0.129.0"
+  }
+}
