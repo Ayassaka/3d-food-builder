@@ -70,27 +70,66 @@ function saveStl() {
 
 function addMoveHandlers() {
 	
-	renderer.domElement.addEventListener("touchstart", e => {
-		moveStart(e.targetTouches[0].clientX, e.targetTouches[0].clientY);
-	});
-	// renderer.domElement.addEventListener("mouseup", moveEnd);
-	// renderer.domElement.addEventListener("touchcancel", handleCancel, false);
-	// renderer.domElement.addEventListener("touchleave", handleEnd, false);
-	renderer.domElement.addEventListener("touchmove", e => {
-		moveStep(e.targetTouches[0].clientX, e.targetTouches[0].clientY);
-	});
+	renderer.domElement.addEventListener("touchstart", handleMoveZoom);
+	renderer.domElement.addEventListener("touchmove", handleMoveZoom);
 
-	let prev_x, prev_y;
+	let tpCache = {};
 
-	function moveStart(x, y) {
-		prev_x = x;
-		prev_y = y;
-	}
-	
-	function moveStep(x, y) {
-		currentMesh.position.x += (x - prev_x) / rendererHeight * maxSize;
-		currentMesh.position.y -= (y - prev_y) / rendererHeight * maxSize;
-		prev_x = x;
-		prev_y = y;
+	function handleMoveZoom(e) {
+		// don't handle 3-touch
+		if (e.targetTouches.length > 2) {
+			tpCache = {};
+			return;
+		}
+
+		let movedTps = [];
+		for (let i = 0; i < e.targetTouches.length; i++) {
+			let tp = e.targetTouches[i];
+			let id = tp.identifier;
+			if (tpCache[id] !== undefined) {
+				movedTps.push(tp);
+			}
+		}
+		
+		// document.getElementById("test").innerHTML = movedTps.map(tp => tp.identifier).join(',');
+		
+		if (movedTps.length === 1) {
+			let p = movedTps[0];
+			currentMesh.position.x += (p.clientX - tpCache[p.identifier].clientX) / rendererHeight * maxSize;
+			currentMesh.position.y -= (p.clientY - tpCache[p.identifier].clientY) / rendererHeight * maxSize;
+		} else if (movedTps.length === 2) {
+			let p1 = movedTps[0];
+			let p2 = movedTps[1];
+			let x1 = tpCache[p1.identifier].clientX / rendererHeight * maxSize - maxSize / 2;
+			let x2 = tpCache[p2.identifier].clientX / rendererHeight * maxSize - maxSize / 2;
+			let y1 = - tpCache[p1.identifier].clientY / rendererHeight * maxSize + maxSize / 2;
+			let y2 = - tpCache[p2.identifier].clientY / rendererHeight * maxSize + maxSize / 2;
+			let x3 = p1.clientX / rendererHeight * maxSize - maxSize / 2;
+			let x4 = p2.clientX / rendererHeight * maxSize - maxSize / 2;
+			let y3 = - p1.clientY / rendererHeight * maxSize + maxSize / 2;
+			let y4 = - p2.clientY / rendererHeight * maxSize + maxSize / 2;
+			let n1x = x2 - x1;
+			let n1y = y2 - y1;
+			let n2x = x4 - x3;
+			let n2y = y4 - y3;
+			let kx = currentMesh.position.x - x1;
+			let ky = currentMesh.position.y - y1;
+			let a = Math.atan2(n2y, n2x) - Math.atan2(n1y, n1x);
+			let r = Math.sqrt(n2x*n2x + n2y*n2y) / Math.sqrt(n1x*n1x + n1y*n1y);
+			currentMesh.position.x = (Math.cos(a) * kx - Math.sin(a) * ky) * r + x3;
+			currentMesh.position.y = (Math.sin(a) * kx + Math.cos(a) * ky) * r + y3;
+			currentMesh.rotation.z += a;
+			currentMesh.scale.x *= r;
+			currentMesh.scale.y *= r;
+			// document.getElementById("test").innerHTML = `${[n1x, n1y, n2x, n2y].join('+')}`;
+		}
+
+		
+		tpCache = {};
+		for (let i = 0; i < e.targetTouches.length; i++) {
+			let tp = e.targetTouches[i];
+			let id = tp.identifier;
+			tpCache[id] = tp;
+		}
 	}
 }
