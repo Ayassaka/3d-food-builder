@@ -27,8 +27,6 @@
       -ms-user-select:none;
       user-select:none;
       color: white;
-    }
-    .ui {
       background-color: black;
     }
     .hScroll {
@@ -39,29 +37,37 @@
     .hSpread {
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
     .shape {
-      font-size: 10vh;
-      padding: 0 1vh 0 1vh;
+      flex: 0 0 10vh;
+      height: 10vh;
+      font-size: 7vh;
+      text-align: center;
       margin: 2vh;
       margin-right: 0vh;
-      border: 1px solid #7f7f7f;
+      border: 1px solid white;
       border-radius: 2vh;
-      background-color: black;
     }
     .tool {
       font-size: 5vh;
-      padding: 0 2vh 0 2vh;
-      margin: 1vh;
-      margin-right: 0vh;
-      background-color: black;
+      margin-left: 4vw;
+      margin-right: 4vw;
     }
     #header {
-      border-bottom: #7f7f7f solid 1px;
+      border-bottom: white solid 1px;
+      height: 8vh;
     }
     .leftBar {
       position: fixed;
       left: 0vh;
+      width: 9vh;
+      top: 50vh;
+      z-index: 1;
+    }
+    .rightBar {
+      position: fixed;
+      right: 0vh;
       width: 9vh;
       top: 50vh;
       z-index: 1;
@@ -85,18 +91,24 @@
       margin-top: 4vh;
       margin-bottom: 4vh;
       width: 40vh;
-      background-color: #7f7f7f;
-      border-radius: 5px;
+      background-color: grey;
+      border-radius: .5vh;
     }
 
     input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      /* background-color: aqua; */
+      transform: scale(5);
+      width: 1vh;
+      height: 1vh;
+      border-radius: 50%;
       opacity: 0;
     }
 
     input[type=range]::-webkit-slider-runnable-track {
       -webkit-appearance: none;
       height: 1vh;
-      border-radius: 5px;
+      border-radius: .5vh;
     }
     
   
@@ -107,16 +119,22 @@
   <!-- <div id="test">Aloha!</div> -->
   <div id="header" class="ui">
     <div id="toolBar" class="hSpread">
-      <div class="tool">⎚</div>
-      <div class="tool">⟲</div>
-      <div class="tool">⟳</div>
-      <div class="tool">➥</div>
+      <div id="clearBtn" class="tool">✗</div>
+      <div id="undoBtn" class="tool" style="font-size: 6vh">↶</div>
+      <div id="redoBtn" class="tool" style="font-size: 6vh">↷</div>
+      <div id="doneBtn" class="tool" >✓</div>
     </div>
   </div>
   <div class="leftBar">
-    <input type="range" min="0" max="100" value="50" orient="vertical" id="range1"/>
+    <input type="range" min="0" max="100" value="0" orient="vertical" id="aspectSlider"/>
     <div class="textIcon">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="117.495 137.5 206.746 163.804" fill="#fff" xmlns:v="https://vecta.io/nano" height="5vh"><path d="M205.127 182.737l54.783 77.481h-21.035l-3.841-7.727-9.237-13.295-36.857-.388-33.291.388-9.969 12.82-4.116 8.201h-20.486l60.179-77.481h23.87zm-14.359 48.474l29.449-.259-26.614-38.158h-1.829l-29.724 38.158 28.718.259zm119.016-21.939l-23.225-14.771v54.128l22.948-14.917v8.731l-26.983 18.132-27.399-18.132v-8.731l23.225 14.783v-54.128l-23.087 14.905v-8.731l27.122-18.132 27.399 18.132v8.731z"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="117.495 137.5 206.746 163.804" fill="#fff" height="5vh"><path d="M205.127 182.737l54.783 77.481h-21.035l-3.841-7.727-9.237-13.295-36.857-.388-33.291.388-9.969 12.82-4.116 8.201h-20.486l60.179-77.481h23.87zm-14.359 48.474l29.449-.259-26.614-38.158h-1.829l-29.724 38.158 28.718.259zm119.016-21.939l-23.225-14.771v54.128l22.948-14.917v8.731l-26.983 18.132-27.399-18.132v-8.731l23.225 14.783v-54.128l-23.087 14.905v-8.731l27.122-18.132 27.399 18.132v8.731z"/></svg>
+    </div>
+  </div>
+  <div class="rightBar">
+    <input type="range" min="0" max="100" value="0" orient="vertical" id="heightSlider"/>
+    <div class="textIcon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="106.862 133.354 214.105 166.219" fill="#fff" height="5vh"><path d="M175.843 154.363l68.981 25.391v76.598l-68.557 38.299-69.193-38.087-.212-77.233zm.158 53.519l57.4-20.883-57.4-20.884-57.399 20.884zm5.26 71.134l52.627-28.7v-52.294l-52.627 19.156zm125.23-72.858l-23.225-15.012v55.009l22.948-15.16v8.873l-26.983 18.427-27.399-18.427v-8.873l23.225 15.024V191.01l-23.087 15.148v-8.873l27.122-18.427 27.399 18.427v8.873z"/></svg>
     </div>
   </div>
   <div id="main">
