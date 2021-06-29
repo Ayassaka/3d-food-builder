@@ -26,29 +26,102 @@
       -moz-user-select:none;
       -ms-user-select:none;
       user-select:none;
+      color: white;
+    }
+    .ui {
+      background-color: black;
     }
     .hScroll {
       display: flex;
       overflow-x: auto;
-      padding-right: 2vw;
+      padding-right: 2vh;
+    }
+    .hSpread {
+      display: flex;
+      justify-content: space-between;
     }
     .shape {
-      /* flex: 0 1 30vw; */
-      /* max-width: fit-content; */
-      /* height: 20vh; */
-      /* text-align: center; */
-      font-size: 20vw;
-      padding: 0 2vw 0 2vw;
-      margin: 2vw;
-      margin-right: 0vw;
-      border: 1px solid #CCCCCC;
-      border-radius: 2vw;
+      font-size: 10vh;
+      padding: 0 1vh 0 1vh;
+      margin: 2vh;
+      margin-right: 0vh;
+      border: 1px solid #7f7f7f;
+      border-radius: 2vh;
+      background-color: black;
     }
+    .tool {
+      font-size: 5vh;
+      padding: 0 2vh 0 2vh;
+      margin: 1vh;
+      margin-right: 0vh;
+      background-color: black;
+    }
+    #header {
+      border-bottom: #7f7f7f solid 1px;
+    }
+    .leftBar {
+      position: fixed;
+      left: 0vh;
+      width: 9vh;
+      top: 50vh;
+      z-index: 1;
+    }
+    .textIcon {
+      position: relative;
+      font-size: 5vh;
+      text-align: center;
+    }
+    .svgIcon {
+      width: 5vh;
+      height: 5vh;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      position: relative;
+      transform: rotate(-90deg);
+      transform-origin: 4vh 0vh;
+      left: 0;
+      height: 1vh;
+      margin-top: 4vh;
+      margin-bottom: 4vh;
+      width: 40vh;
+      background-color: #7f7f7f;
+      border-radius: 5px;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      opacity: 0;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      -webkit-appearance: none;
+      height: 1vh;
+      border-radius: 5px;
+    }
+    
+  
+  
   </style>
   </head>
 <body>
   <!-- <div id="test">Aloha!</div> -->
-  <div id="footer">
+  <div id="header" class="ui">
+    <div id="toolBar" class="hSpread">
+      <div class="tool">⎚</div>
+      <div class="tool">⟲</div>
+      <div class="tool">⟳</div>
+      <div class="tool">➥</div>
+    </div>
+  </div>
+  <div class="leftBar">
+    <input type="range" min="0" max="100" value="50" orient="vertical" id="range1"/>
+    <div class="textIcon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="117.495 137.5 206.746 163.804" fill="#fff" xmlns:v="https://vecta.io/nano" height="5vh"><path d="M205.127 182.737l54.783 77.481h-21.035l-3.841-7.727-9.237-13.295-36.857-.388-33.291.388-9.969 12.82-4.116 8.201h-20.486l60.179-77.481h23.87zm-14.359 48.474l29.449-.259-26.614-38.158h-1.829l-29.724 38.158 28.718.259zm119.016-21.939l-23.225-14.771v54.128l22.948-14.917v8.731l-26.983 18.132-27.399-18.132v-8.731l23.225 14.783v-54.128l-23.087 14.905v-8.731l27.122-18.132 27.399 18.132v8.731z"/></svg>
+    </div>
+  </div>
+  <div id="main">
+  </div>
+  <div id="footer" class="ui">
     <div id="shapePool" class="hScroll">
     </div>
   </div>

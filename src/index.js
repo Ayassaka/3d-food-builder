@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { saveAs } from 'file-saver';
 import font from 'url:./arial-unicode-ms.ttf'
 
-import STLExporter from './STLExporter.js'
+import STLExporter from './STLExporter'
+import WebkitInputRangeFillLower from './webkit-input-range-fill-lower' 
 
 import TextToSVG from 'text-to-svg';
 let textToSVG;
@@ -10,9 +11,9 @@ TextToSVG.load(font, function(err, t) { textToSVG = t; });
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
 
-const previewLoopRadius = 6;
+const previewLoopRadius = 2;
 
-let scene, renderer, rendererWidth, footer, rendererHeight, camera, currentObject;
+let scene, renderer, rendererWidth, footer, rendererHeight, camera, currentObject, material;
 
 const maxSize = 10;
 
@@ -20,19 +21,21 @@ loadUIBar();
 loadRenderer();
 loadGround();
 loadMoveHandlers();
+loadMaterial();
 
 function loadRenderer() {
   scene = new THREE.Scene();
   renderer = new THREE.WebGLRenderer( { antialias: true } );
   rendererWidth = window.innerWidth;
+  header = document.getElementById("header");
   footer = document.getElementById("footer");
-  rendererHeight = window.innerHeight - footer.offsetHeight;
+  rendererHeight = window.innerHeight - footer.offsetHeight - header.offsetHeight;
   renderer.setSize(rendererWidth, rendererHeight);
   
   camera = new THREE.PerspectiveCamera(70, rendererWidth / rendererHeight, 0.01, 20);
   camera.position.x = previewLoopRadius;
   camera.position.y = 0;
-  camera.position.z = 12;
+  camera.position.z = previewLoopRadius * 5;
   camera.lookAt(0, 0, 0);
   renderer.setAnimationLoop(time => {
     camera.position.x = previewLoopRadius * Math.cos( time / 2000 );
@@ -40,7 +43,11 @@ function loadRenderer() {
     camera.lookAt(0, 0, 0);
     renderer.render( scene, camera );
   });
-  footer.prepend(renderer.domElement);
+  document.getElementById("main").prepend(renderer.domElement);
+}
+
+function loadMaterial() {
+  material = new THREE.MeshNormalMaterial();
 }
 
 function loadGround() {
@@ -121,10 +128,18 @@ function loadMoveHandlers() {
 }
 
 function loadUIBar() {
-  const shapes = ['★','☆','●','○','■','□','A'];
+  
+  // input ranges
+  new WebkitInputRangeFillLower({
+    selectors: ['range1'],
+    color: 'white',
+  });
+
+  
+  // shapes
+  const shapes = ['★','●','■','♥','✈','A'];
   const shapePool = document.getElementById('shapePool');
   shapes.map(text => {
-    console.log(text);
     const div = document.createElement('div');
     div.className = 'shape';
     div.textContent = text;
@@ -147,12 +162,9 @@ function addText(text) {
 function extrudeSvg(svg) {
   const loader = new SVGLoader();
   const svgData = loader.parse(svg);
-  console.log(svgData);
 
   // Group that will contain all of our paths
   const svgGroup = new THREE.Group();
-
-  const material = new THREE.MeshNormalMaterial();
 
   // Loop through all of the parsed paths
   svgData.paths.forEach((path, i) => {
