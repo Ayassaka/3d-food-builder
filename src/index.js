@@ -19,7 +19,8 @@ let scene, renderer, rendererWidth, footer, rendererHeight, camera, material;
 
 let currentObject, currentShape, objectList = [];
 
-let aspectSlider, heightSlider;
+let aspectSlider, heightSlider, clearBtn, undoBtn, redoBtn, doneBtn;
+let disabledOpacity = 0.25;
 
 let historyStep = 0;
 let history = [{shape: null}];
@@ -171,15 +172,20 @@ function loadMoveHandlers() {
 
 function loadUI() {
   // navigation bar
-  document.getElementById('clearBtn').onclick = clearObjects;
-  document.getElementById('undoBtn').onclick = undoOp;
-  document.getElementById('redoBtn').onclick = redoOp;
-  document.getElementById('doneBtn').onclick = saveObjects;
+  clearBtn = document.getElementById('clearBtn');
+  undoBtn = document.getElementById('undoBtn');
+  redoBtn = document.getElementById('redoBtn');
+  doneBtn = document.getElementById('doneBtn');
   
+  clearBtn.onclick = clearObjects;
+  undoBtn.onclick = undoOp;
+  redoBtn.onclick = redoOp;
+  doneBtn.onclick = saveObjects;
+
   // input ranges
   new WebkitInputRangeFillLower({
     selectors: ['aspectSlider', 'heightSlider'],
-    color: 'white',
+    color: '#f47321',
   });
 
   let prevAspect = 1;
@@ -336,10 +342,15 @@ function recordState(isNew = false) {
     height: heightSlider.value,
     isNew: isNew,
   });
+  clearBtn.style.opacity = 1;
+  undoBtn.style.opacity = 1;
+  redoBtn.style.opacity = disabledOpacity;
+  doneBtn.style.opacity = 1;
 }
 
 function undoOp() {
-  if (historyStep == 0) return;
+  if (undoBtn.style.opacity != 1) return;
+
   historyStep--;
   scene.remove(currentObject);
   if (historyStep == 0) {
@@ -347,6 +358,9 @@ function undoOp() {
     currentShape = null;
     aspectSlider.disable();
     heightSlider.disable();
+    clearBtn.style.opacity = disabledOpacity;
+    undoBtn.style.opacity = disabledOpacity;
+    doneBtn.style.opacity = disabledOpacity;
   } else {
     if (history[historyStep+1].isNew) {
       currentObject = objectList.pop();
@@ -355,10 +369,12 @@ function undoOp() {
     heightSlider.value = history[historyStep].height;
     heightSlider.dispatchEvent(new Event('input'));
   }
+  redoBtn.style.opacity = 1;
 }
 
 function redoOp() {
-  if (historyStep === history.length - 1) return;
+  if (redoBtn.style.opacity != 1) return;
+
   historyStep++;
   if (history[historyStep].isNew) {
     addShape(history[historyStep].shape);
@@ -367,9 +383,14 @@ function redoOp() {
     heightSlider.value = history[historyStep].height;
     heightSlider.dispatchEvent(new Event('input'));
   }
+  clearBtn.style.opacity = 1;
+  undoBtn.style.opacity = 1;
+  redoBtn.style.opacity = (historyStep === history.length - 1) ? disabledOpacity : 1;
+  doneBtn.style.opacity = 1;
 }
 
 function clearObjects() {
+  if (clearBtn.style.opacity != 1) return;
   if (currentObject) scene.remove(currentObject);
   currentObject = null;
   currentShape = null;
@@ -380,13 +401,17 @@ function clearObjects() {
   
   historyStep = 0;
   history = [{shape: null}];
+  clearBtn.style.opacity = disabledOpacity;
+  undoBtn.style.opacity = disabledOpacity;
+  redoBtn.style.opacity = disabledOpacity;
+  doneBtn.style.opacity = disabledOpacity;
 
   aspectSlider.disable();
   heightSlider.disable();
 }
 
 function saveObjects() {
-  console.log('Not really implemented');
+  if (doneBtn.style.opacity != 1) return;
   let exporter = new STLExporter();
   let str = exporter.parse( scene ); // Export the scene
   var blob = new Blob( [str], { type : 'text/plain' } ); // Generate Blob from the string
