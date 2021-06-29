@@ -58,19 +58,18 @@
       border-bottom: white solid 1px;
       height: 8vh;
     }
-    .leftBar {
+    .leftBar, .rightBar {
       position: fixed;
-      left: 0vh;
       width: 9vh;
       top: 50vh;
       z-index: 1;
+      transition: opacity .5s;
+    }
+    .leftBar {
+      left: 0vh;
     }
     .rightBar {
-      position: fixed;
       right: 0vh;
-      width: 9vh;
-      top: 50vh;
-      z-index: 1;
     }
     .textIcon {
       position: relative;
@@ -93,6 +92,9 @@
       width: 40vh;
       background-color: grey;
       border-radius: .5vh;
+    }
+    input:disabled {
+      opacity: inherit;
     }
 
     input[type=range]::-webkit-slider-thumb {

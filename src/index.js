@@ -11,15 +11,26 @@ TextToSVG.load(font, function(err, t) { textToSVG = t; });
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
 
+let cloneDeep = require('lodash.clonedeep');
+
 const previewLoopRadius = 4;
 
 let scene, renderer, rendererWidth, footer, rendererHeight, camera, material;
 
-let currentObject, objectList = [];
+let currentObject, currentShape, objectList = [];
 
 let aspectSlider, heightSlider;
 
+let historyStep = 0;
+let history = [{shape: null}];
+
 const maxSize = 10;
+
+const urlParams = new URLSearchParams(window.location.search);
+const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 2;
+const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .2;
+const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
+
 
 loadUI();
 loadMaterial();
@@ -57,8 +68,8 @@ function loadRenderer() {
   let light = new THREE.PointLight(0xffffff, 1);
   light.position.set(-maxSize * 1.5, maxSize * 1.5, maxSize * 1.5);
   light.castShadow = true;
-  light.shadow.mapSize.width = 1024;
-  light.shadow.mapSize.height = 1024;
+  light.shadow.mapSize.width = shadowMapSize;
+  light.shadow.mapSize.height = shadowMapSize;
   scene.add(light);
 }
 
@@ -82,12 +93,13 @@ function loadGround() {
 function loadMoveHandlers() {
   renderer.domElement.addEventListener("touchstart", handleMoveZoom);
   renderer.domElement.addEventListener("touchmove", handleMoveZoom);
+  renderer.domElement.disabled = true;
 
   let tpCache = {};
 
   function handleMoveZoom(e) {
     // don't handle 3-touch
-    if (!currentObject || e.targetTouches.length > 2) {
+    if (renderer.domElement.disabled || !currentShape || e.targetTouches.length > 2) {
       tpCache = {};
       return;
     }
@@ -103,8 +115,11 @@ function loadMoveHandlers() {
 
     if (movedTps.length === 1) {
       let p = movedTps[0];
-      currentObject.position.x += (p.clientX - tpCache[p.identifier].clientX) / rendererHeight * maxSize;
-      currentObject.position.y -= (p.clientY - tpCache[p.identifier].clientY) / rendererHeight * maxSize;
+        transformShape(currentShape, v => { 
+          v.x += (p.clientX - tpCache[p.identifier].clientX) / rendererHeight * maxSize,
+          v.y -= (p.clientY - tpCache[p.identifier].clientY) / rendererHeight * maxSize
+        });
+      extrudeCurrentShape();
     } else if (movedTps.length === 2) {
       let p1 = movedTps[0];
       let p2 = movedTps[1];
@@ -120,15 +135,15 @@ function loadMoveHandlers() {
       let n1y = y2 - y1;
       let n2x = x4 - x3;
       let n2y = y4 - y3;
-      let kx = currentObject.position.x - x1;
-      let ky = currentObject.position.y - y1;
-      let a = Math.atan2(n2y, n2x) - Math.atan2(n1y, n1x);
-      let r = Math.sqrt(n2x*n2x + n2y*n2y) / Math.sqrt(n1x*n1x + n1y*n1y);
-      currentObject.position.x = (Math.cos(a) * kx - Math.sin(a) * ky) * r + x3;
-      currentObject.position.y = (Math.sin(a) * kx + Math.cos(a) * ky) * r + y3;
-      currentObject.rotation.z += a;
-      currentObject.scale.x *= r;
-      currentObject.scale.y *= r;
+      transformShape(currentShape, v => {
+        let kx = v.x - x1;
+        let ky = v.y - y1;
+        let a = Math.atan2(n2y, n2x) - Math.atan2(n1y, n1x);
+        let r = Math.sqrt(n2x*n2x + n2y*n2y) / Math.sqrt(n1x*n1x + n1y*n1y);
+        v.x = (Math.cos(a) * kx - Math.sin(a) * ky) * r + x3;
+        v.y = (Math.sin(a) * kx + Math.cos(a) * ky) * r + y3;
+      });
+      extrudeCurrentShape();
     }
 
     tpCache = {};
@@ -138,6 +153,20 @@ function loadMoveHandlers() {
       tpCache[id] = tp;
     }
   }
+
+  // interaction with UI components
+  renderer.domElement.addEventListener('touchstart', e => {
+    if (renderer.domElement.disabled) return;
+    aspectSlider.disable();
+    heightSlider.disable();
+  })
+  renderer.domElement.addEventListener('touchend', e => {
+    if (renderer.domElement.disabled) return;
+    if (e.touches.length) return;
+    aspectSlider.enable();
+    heightSlider.enable();
+    recordState();
+  })
 }
 
 function loadUI() {
@@ -156,21 +185,51 @@ function loadUI() {
   let prevAspect = 1;
 
   aspectSlider = document.getElementById('aspectSlider');
-  aspectSlider.disabled = true;
+  aspectSlider.disable = _ => disableSideBar(aspectSlider);
+  aspectSlider.enable = _ => enableSideBar(aspectSlider);
+  aspectSlider.reset = _ => resetSideBar(aspectSlider);
+
+  heightSlider = document.getElementById('heightSlider');
+  heightSlider.disable = _ => disableSideBar(heightSlider);
+  heightSlider.enable = _ => enableSideBar(heightSlider);
+  heightSlider.reset = _ => resetSideBar(heightSlider);
+
+  aspectSlider.disable();
   aspectSlider.addEventListener('input', e => {
-    let newAspect = 75 / (125 - aspectSlider.value);
-    if (currentObject) {
-      currentObject.scale.y *= newAspect / prevAspect;
+    let newAspect = 2 ** (aspectSlider.value / 50 - 1);
+    if (currentShape) {
+      let r = newAspect / prevAspect;
+      transformShape(currentShape, v => { v.y *= r; });
+      extrudeCurrentShape();
     }
     prevAspect = newAspect;
   });
+  aspectSlider.addEventListener('touchstart', e => {
+    if (aspectSlider.disabled) return;
+    heightSlider.disable();
+  })
+  aspectSlider.addEventListener('touchend', e => {
+    if (aspectSlider.disabled) return;
+    heightSlider.enable();
+    prevAspect = 1;
+    aspectSlider.reset();
+    recordState();
+  })
   
-  heightSlider = document.getElementById('heightSlider');
-  heightSlider.disabled = true;
+  heightSlider.disable();
   heightSlider.addEventListener('input', e => {
-    if (!currentObject) return;
-    currentObject.scale.z = 75 / (125 - heightSlider.value);
+    if (!currentShape) return;
+    extrudeCurrentShape();
   });
+  heightSlider.addEventListener('touchstart', e => {
+    if (heightSlider.disabled) return;
+    aspectSlider.disable();
+  })
+  heightSlider.addEventListener('touchend', e => {
+    if (heightSlider.disabled) return;
+    aspectSlider.enable();
+    recordState();
+  })
   
   // shapes
   const shapes = ['★','●','■','♥','✈','A'];
@@ -180,85 +239,150 @@ function loadUI() {
     div.className = 'shape';
     div.textContent = text;
     div.onclick = e => {
-      addObject(genText(e.target.textContent));
+      addShape(genTextShape(e.target.textContent));
+      recordState(true);
     };
     shapePool.appendChild(div);
   });
+
+  function disableSideBar(elem) {
+    elem.parentElement.style.opacity = 0;
+    elem.disabled = true;
+  }
+
+  function enableSideBar(elem) {
+    elem.parentElement.style.opacity = 1;
+    elem.disabled = false;
+  }
+
+  function resetSideBar(elem) {
+    enableSideBar(elem);
+    elem.value = 50;
+    elem.dispatchEvent(new Event('input'));
+  }
 }
 
-function genText(text) {
+function genTextShape(text) {
   if (!textToSVG) return;
-  const options = {x: 0, y: 0, fontSize: 4, anchor: 'center middle', attributes: {fill: "black"}};
+  const options = {
+    x: 0,
+    y: 0, fontSize: 4,
+    anchor: 'center middle',
+    attributes: { fill: "black" }
+  };
   const svg = textToSVG.getSVG(text, options);
-  return extrudeSvg(svg);
+  return svgToShape(svg);
 }
 
-function extrudeSvg(svg) {
+function svgToShape(svg) {
   const loader = new SVGLoader();
   const svgData = loader.parse(svg);
+  const shapes = [];
 
-  // Group that will contain all of our paths
-  const svgGroup = new THREE.Group();
-
-  // Loop through all of the parsed paths
-  svgData.paths.forEach((path, i) => {
-    const shapes = path.toShapes(true);
-
-    // Each path has array of shapes
-    shapes.forEach((shape, j) => {
-      // Finally we can take each shape and extrude it
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: 1,
-        bevelEnabled: false,
-        // bevelThickness: 0.2,
-        // bevelSize: 0.2,
-        // bevelSegments: 8
-      });
-
-      // Create a mesh and add it to the group
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      svgGroup.add(mesh);
-    });
+  svgData.paths.forEach(path => {
+    shapes.push(...path.toShapes(true));
   });
-  svgGroup.scale.y *= -1;
-  return svgGroup;
+  transformShape(shapes, v => { v.y = -v.y; });
+  return shapes;
 }
 
-function addObject(obj) {
+function extrudeCurrentShape() {
+  if (currentObject) scene.remove(currentObject);
+  const geometry = new THREE.ExtrudeGeometry(currentShape, {
+    depth: 75 / (125 - heightSlider.value),
+    bevelEnabled: true,
+    bevelThickness: bevelSize,
+    bevelSize: bevelSize,
+    bevelSegments: bevelSegments
+  });
+
+  currentObject = new THREE.Mesh(geometry, material);
+  currentObject.castShadow = true;
+  currentObject.receiveShadow = true;
+  scene.add(currentObject);
+}
+
+function addShape(shape) {
+  currentShape = null;
+  if (currentObject) objectList.push(currentObject);
   currentObject = null;
-  aspectSlider.disabled = false;
-  aspectSlider.value = 50;
-  aspectSlider.dispatchEvent(new Event('input'));
-  heightSlider.disabled = false;
-  heightSlider.value = 50;
-  heightSlider.dispatchEvent(new Event('input'));
-  objectList.push(obj);
-  currentObject = obj;
-  scene.add(obj);
+  aspectSlider.enable();
+  aspectSlider.reset();
+  heightSlider.enable();
+  heightSlider.reset();
+  renderer.domElement.disabled = false;
+  currentShape = shape;
+  extrudeCurrentShape();
+}
+
+function transformShape(shape, t) {
+  shape.forEach(s => {
+    s.curves.forEach(c => {
+      if (c.v0) t(c.v0);
+      t(c.v1);
+      t(c.v2);
+    });
+    if (s.holes) transformShape(s.holes, t);
+  });
+}
+
+function recordState(isNew = false) {
+  historyStep++;
+  if (historyStep < history.length) {
+    history.splice(historyStep, history.length - historyStep);
+  }
+  history.push({
+    shape: cloneDeep(currentShape),
+    height: heightSlider.value,
+    isNew: isNew,
+  });
 }
 
 function undoOp() {
-  console.log('Not implemented');
+  if (historyStep == 0) return;
+  historyStep--;
+  scene.remove(currentObject);
+  if (historyStep == 0) {
+    currentObject = null;
+    currentShape = null;
+    aspectSlider.disable();
+    heightSlider.disable();
+  } else {
+    if (history[historyStep+1].isNew) {
+      currentObject = objectList.pop();
+    }
+    currentShape = history[historyStep].shape;
+    heightSlider.value = history[historyStep].height;
+    heightSlider.dispatchEvent(new Event('input'));
+  }
 }
 
 function redoOp() {
-  console.log('Not implemented');
+  if (historyStep === history.length - 1) return;
+  historyStep++;
+  if (history[historyStep].isNew) {
+    addShape(history[historyStep].shape);
+  } else {
+    currentShape = history[historyStep].shape;
+    heightSlider.value = history[historyStep].height;
+    heightSlider.dispatchEvent(new Event('input'));
+  }
 }
 
 function clearObjects() {
+  if (currentObject) scene.remove(currentObject);
   currentObject = null;
+  currentShape = null;
+  
   objectList.forEach(obj => {
     scene.remove(obj);
   })
   
-  aspectSlider.value = 50;
-  aspectSlider.dispatchEvent(new Event('input'));
-  aspectSlider.disabled = true;
-  heightSlider.value = 50;
-  heightSlider.dispatchEvent(new Event('input'));
-  heightSlider.disabled = true;
+  historyStep = 0;
+  history = [{shape: null}];
+
+  aspectSlider.disable();
+  heightSlider.disable();
 }
 
 function saveObjects() {
