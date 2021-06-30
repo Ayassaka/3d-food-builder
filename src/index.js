@@ -1,3 +1,5 @@
+/****** Dependencies **********************************************************/
+
 import * as THREE from 'three';
 import { saveAs } from 'file-saver';
 import font from 'url:./arial-unicode-ms.ttf' // TODO: allow cache
@@ -6,12 +8,13 @@ import STLExporter from './STLExporter'
 import WebkitInputRangeFillLower from './webkit-input-range-fill-lower' 
 
 import TextToSVG from 'text-to-svg';
-let textToSVG;
-TextToSVG.load(font, function(err, t) { textToSVG = t; loadUI(); });
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
 
 let cloneDeep = require('lodash.clonedeep');
+
+
+/****** Globals ***************************************************************/
 
 const previewLoopRadius = 4;
 
@@ -32,10 +35,17 @@ const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegme
 const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .2;
 const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
 
-// loadUI();
+
+/****** Mains *****************************************************************/
+
 loadMaterial();
 loadRenderer();
 loadGround();
+let textToSVG;
+TextToSVG.load(font, function(err, t) { textToSVG = t; loadUI(); });
+
+
+/****** Graphics **************************************************************/
 
 function loadRenderer() {
   scene = new THREE.Scene();
@@ -90,8 +100,10 @@ function loadGround() {
 }
 
 
+/****** UI ********************************************************************/
+
 function loadUI() {
-  // canvas touches
+  // Renderer touche control
   renderer.domElement.addEventListener("touchstart", handleRendererTouch);
   renderer.domElement.addEventListener("touchmove", handleRendererTouch);
   renderer.domElement.disabled = true;
@@ -159,7 +171,8 @@ function loadUI() {
       tpCache[id] = tp;
     }
   }
-  // navigation bar
+
+  // Navigation bar
   clearBtn = document.getElementById('clearBtn');
   undoBtn = document.getElementById('undoBtn');
   redoBtn = document.getElementById('redoBtn');
@@ -170,7 +183,8 @@ function loadUI() {
   redoBtn.onclick = redoOp;
   doneBtn.onclick = saveObjects;
 
-  // input ranges
+
+  // Side Sliders
   new WebkitInputRangeFillLower({
     selectors: ['aspectSlider', 'heightSlider'],
     color: '#f47321',
@@ -233,7 +247,8 @@ function loadUI() {
     recordState();
   })
   
-  // shapes
+
+  // Shape Pool
   const shapes = ['★','●','■','▲','♥','✈','A','学术垃圾'];
   const shapePool = document.getElementById('shapePool');
   shapePool.disable = () => {
@@ -303,7 +318,8 @@ function loadUI() {
     shapePool.appendChild(div);
   });
 
-    // interaction with UI components
+
+  // Renderer vs UI switching
   renderer.domElement.addEventListener('touchstart', e => {
     if (renderer.domElement.disabled) return;
     aspectSlider.disable();
@@ -319,7 +335,8 @@ function loadUI() {
     recordState();
   });
 
-  // splash
+
+  // Splash
   if (document.readyState !== "complete") {
     console.warn(`Document ready state is ${document.readyState}.`);
   }
@@ -327,6 +344,8 @@ function loadUI() {
   splash.style.opacity = 0;
   setTimeout(() => { splash.remove(); }, 500);
 
+
+  // Helper
   function disableSideBar(elem) {
     elem.parentElement.style.opacity = disabledOpacity;
     elem.disabled = true;
@@ -343,6 +362,9 @@ function loadUI() {
   }
 }
 
+
+/****** Modeling **************************************************************/
+
 function genTextSvg(text) {
   if (!textToSVG) console.error("textLoader not ready");
   const options = {
@@ -354,7 +376,6 @@ function genTextSvg(text) {
   const metrics = textToSVG.getMetrics(text, options);
   const outputSize = 5;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-outputSize/2} ${-outputSize/2} ${outputSize} ${outputSize}">`;
-  // let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${metrics.x} ${metrics.y} ${metrics.width} ${metrics.height}" preserveAspectRatio="xMidYMid meet" height="95%" width="95%">`;
   options.fontSize = outputSize / Math.max(metrics.width, metrics.height);
   svg += textToSVG.getPath(text, options);
   svg += '</svg>';
@@ -391,6 +412,23 @@ function extrudeCurrentShape() {
   scene.add(currentObject);
 }
 
+
+/****** Other helpers *********************************************************/
+
+function transformShape(shape, t) {
+  shape.forEach(s => {
+    s.curves.forEach(c => {
+      if (c.v0) t(c.v0);
+      t(c.v1);
+      t(c.v2);
+    });
+    if (s.holes) transformShape(s.holes, t);
+  });
+}
+
+
+/****** History ***************************************************************/
+
 function addShape(shape) {
   currentShape = null;
   if (currentObject) objectList.push(currentObject);
@@ -402,17 +440,6 @@ function addShape(shape) {
   renderer.domElement.disabled = false;
   currentShape = shape;
   extrudeCurrentShape();
-}
-
-function transformShape(shape, t) {
-  shape.forEach(s => {
-    s.curves.forEach(c => {
-      if (c.v0) t(c.v0);
-      t(c.v1);
-      t(c.v2);
-    });
-    if (s.holes) transformShape(s.holes, t);
-  });
 }
 
 function recordState(isNew = false) {
