@@ -272,7 +272,7 @@ function loadUI() {
         currentShape = svgToShape(e.currentTarget.innerHTML);
         transformShape(currentShape, v => {
           v.x = v.x + (p.clientX / rendererHeight - 0.5) * maxSize;
-          v.y = - v.y - (p.clientY / rendererHeight - 0.5) * maxSize;
+          v.y = v.y - (p.clientY / rendererHeight - 0.5) * maxSize;
         })
         if (currentObject) objectList.push(currentObject);
         currentObject = null;
@@ -293,6 +293,9 @@ function loadUI() {
       aspectSlider.enable();
       heightSlider.enable();
       if (shapeInstantiated) {
+        recordState(true);
+      } else if (prevScrollLeft === shapePool.scrollLeft) {
+        addShape(svgToShape(e.currentTarget.innerHTML));
         recordState(true);
       }
       renderer.domElement.disabled = false;
@@ -344,12 +347,15 @@ function genTextSvg(text) {
   if (!textToSVG) console.error("textLoader not ready");
   const options = {
     x: 0,
-    y: 0, fontSize: 4,
+    y: 0, fontSize: 1,
     anchor: 'center middle',
     attributes: { fill: "white" }
   };
   const metrics = textToSVG.getMetrics(text, options);
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${metrics.x} ${metrics.y} ${metrics.width} ${metrics.height}" preserveAspectRatio="xMidYMid meet" height="95%" width="95%">`;
+  const outputSize = 5;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-outputSize/2} ${-outputSize/2} ${outputSize} ${outputSize}">`;
+  // let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${metrics.x} ${metrics.y} ${metrics.width} ${metrics.height}" preserveAspectRatio="xMidYMid meet" height="95%" width="95%">`;
+  options.fontSize = outputSize / Math.max(metrics.width, metrics.height);
   svg += textToSVG.getPath(text, options);
   svg += '</svg>';
 
@@ -364,6 +370,7 @@ function svgToShape(svg) {
   svgData.paths.forEach(path => {
     shapes.push(...path.toShapes(true));
   });
+  transformShape(shapes, v => { v.y = -v.y; });
   return shapes;
 }
 
