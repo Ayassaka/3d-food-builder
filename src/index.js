@@ -31,13 +31,11 @@ const urlParams = new URLSearchParams(window.location.search);
 const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 2;
 const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .2;
 const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
-const vh = window.innerHeight;
 
 // loadUI();
 loadMaterial();
 loadRenderer();
 loadGround();
-loadMoveHandlers();
 
 function loadRenderer() {
   scene = new THREE.Scene();
@@ -91,16 +89,23 @@ function loadGround() {
   scene.add( line );
 }
 
-function loadMoveHandlers() {
-  renderer.domElement.addEventListener("touchstart", handleMoveZoom);
-  renderer.domElement.addEventListener("touchmove", handleMoveZoom);
+
+function loadUI() {
+  // canvas touches
+  renderer.domElement.addEventListener("touchstart", handleRendererTouch);
+  renderer.domElement.addEventListener("touchmove", handleRendererTouch);
   renderer.domElement.disabled = true;
 
   let tpCache = {};
 
+  function handleRendererTouch(e) {
+    if (renderer.domElement.disabled) return;
+    handleMoveZoom(e);
+  }
+
   function handleMoveZoom(e) {
     // don't handle 3-touch
-    if (renderer.domElement.disabled || !currentShape || e.targetTouches.length > 2) {
+    if (!currentShape || e.targetTouches.length > 2) {
       tpCache = {};
       return;
     }
@@ -154,9 +159,6 @@ function loadMoveHandlers() {
       tpCache[id] = tp;
     }
   }
-}
-
-function loadUI() {
   // navigation bar
   clearBtn = document.getElementById('clearBtn');
   undoBtn = document.getElementById('undoBtn');
@@ -197,16 +199,13 @@ function loadUI() {
     prevAspect = newAspect;
   });
   aspectSlider.addEventListener('touchstart', e => {
-    if (aspectSlider.touchId || aspectSlider.disabled) return;
-    aspectSlider.touchId = e.changedTouches[0].identifier;
+    if (aspectSlider.disabled) return;
     heightSlider.disable();
     renderer.domElement.disabled = true;
     shapePool.disable();
   })
   aspectSlider.addEventListener('touchend', e => {
     if (aspectSlider.disabled) return;
-    if (!e.changedTouches[0].identifier == aspectSlider.touchId) return;
-    aspectSlider.touchId = null;
     heightSlider.enable();
     renderer.domElement.disabled = false;
     shapePool.enable();
@@ -221,16 +220,13 @@ function loadUI() {
     extrudeCurrentShape();
   });
   heightSlider.addEventListener('touchstart', e => {
-    if (heightSlider.touchId || heightSlider.disabled) return;
-    heightSlider.touchId = e.changedTouches[0].identifier;
+    if (heightSlider.disabled) return;
     aspectSlider.disable();
     renderer.domElement.disabled = true;
     shapePool.disable();
   })
   heightSlider.addEventListener('touchend', e => {
     if (heightSlider.disabled) return;
-    if (!e.changedTouches[0].identifier == heightSlider.touchId) return;
-    heightSlider.touchId = null;
     aspectSlider.enable();
     renderer.domElement.disabled = false;
     shapePool.enable();
@@ -248,6 +244,9 @@ function loadUI() {
     shapePool.style.opacity = 1;
     shapePool.disabled = false;
   };
+  let shapeInstantiated;
+  const instantiateY = window.innerHeight - footer.offsetHeight;
+  let prevScrollLeft;
   shapes.forEach(text => {
     const div = document.createElement('div');
     div.className = 'shape';
@@ -255,29 +254,49 @@ function loadUI() {
     div.addEventListener('touchstart', e => {
       if (shapePool.touchId || shapePool.disabled) return;
       shapePool.touchId = e.changedTouches[0].identifier;
-      addShape(svgToShape(e.currentTarget.innerHTML));
+      shapeInstantiated = false;
+      prevScrollLeft = shapePool.scrollLeft;
       
-      shapeSelected = true;
       aspectSlider.disable();
       heightSlider.disable();
       renderer.domElement.disabled = true;
     });
-    div.addEventListener('touchend', e => {
+    div.addEventListener('touchmove', e => {
       if (shapePool.disabled) return;
-      if (!e.changedTouches[0].identifier == shapePool.touchId) return;
-      shapePool.touchId = null;
-      recordState(true);
-      console.log(e);
-      shapeSelected = false;
-      if (historyStep) {
-        aspectSlider.enable();
-        heightSlider.enable();
-        renderer.domElement.disabled = false;
+      if (prevScrollLeft !== shapePool.scrollLeft) return;
+      if (e.targetTouches.length != 1) return;
+      const p = e.targetTouches[0];
+      if (p.identifier !== shapePool.touchId) return;
+      if (!shapeInstantiated && p.clientY < instantiateY) {
+        shapeInstantiated = true;
+        currentShape = svgToShape(e.currentTarget.innerHTML);
+        transformShape(currentShape, v => {
+          v.x = v.x + (p.clientX / rendererHeight - 0.5) * maxSize;
+          v.y = - v.y - (p.clientY / rendererHeight - 0.5) * maxSize;
+        })
+        if (currentObject) objectList.push(currentObject);
+        currentObject = null;
+        aspectSlider.reset();
+        heightSlider.reset();
+        extrudeCurrentShape();
+      }
+      if (shapeInstantiated) {
+        handleMoveZoom(e);
+        e.preventDefault();
       }
     });
-    // div.addEventListener('click', e => {
-    //   if (shapePool.disabled) return;
-    // });
+    div.addEventListener('touchend', e => {
+      if (shapePool.disabled) return;
+      if (e.changedTouches[0].identifier !== shapePool.touchId) return;
+      shapePool.touchId = null;
+      
+      aspectSlider.enable();
+      heightSlider.enable();
+      if (shapeInstantiated) {
+        recordState(true);
+      }
+      renderer.domElement.disabled = false;
+    });
     shapePool.appendChild(div);
   });
 
@@ -306,7 +325,7 @@ function loadUI() {
   setTimeout(() => { splash.remove(); }, 500);
 
   function disableSideBar(elem) {
-    elem.parentElement.style.opacity = 0;
+    elem.parentElement.style.opacity = disabledOpacity;
     elem.disabled = true;
   }
 
@@ -316,7 +335,6 @@ function loadUI() {
   }
 
   function resetSideBar(elem) {
-    enableSideBar(elem);
     elem.value = 50;
     elem.dispatchEvent(new Event('input'));
   }
@@ -346,7 +364,6 @@ function svgToShape(svg) {
   svgData.paths.forEach(path => {
     shapes.push(...path.toShapes(true));
   });
-  transformShape(shapes, v => { v.y = -v.y; });
   return shapes;
 }
 
