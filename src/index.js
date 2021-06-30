@@ -7,7 +7,7 @@ import WebkitInputRangeFillLower from './webkit-input-range-fill-lower'
 
 import TextToSVG from 'text-to-svg';
 let textToSVG;
-TextToSVG.load(font, function(err, t) { textToSVG = t; });
+TextToSVG.load(font, function(err, t) { textToSVG = t; loadUI(); });
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
 
@@ -31,9 +31,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 2;
 const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .2;
 const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
+const vh = window.innerHeight;
 
-
-loadUI();
+// loadUI();
 loadMaterial();
 loadRenderer();
 loadGround();
@@ -238,18 +238,29 @@ function loadUI() {
   })
   
   // shapes
-  const shapes = ['★','●','■','♥','✈','A'];
+  const shapes = ['★','●','■','♥','✈','A','全都是学术垃圾'];
   const shapePool = document.getElementById('shapePool');
   shapes.forEach(text => {
     const div = document.createElement('div');
     div.className = 'shape';
-    div.textContent = text;
-    div.onclick = e => {
-      addShape(genTextShape(e.target.textContent));
+    div.innerHTML = genTextSvg(text);
+    // div.addEventListener('touchstart', e => {
+    //   console.log(e.target.innerHTML);
+    // })
+    div.addEventListener('click', e => {
+      console.log(e);
+      addShape(svgToShape(e.currentTarget.innerHTML));
       recordState(true);
-    };
+    });
     shapePool.appendChild(div);
   });
+
+  if (document.readyState !== "complete") {
+    console.warn(`Document ready state is ${document.readyState}.`);
+  }
+  let splash = document.getElementById('splash');
+  splash.style.opacity = 0;
+  setTimeout(() => { splash.remove(); }, 500);
 
   function disableSideBar(elem) {
     elem.parentElement.style.opacity = 0;
@@ -268,16 +279,20 @@ function loadUI() {
   }
 }
 
-function genTextShape(text) {
-  if (!textToSVG) return;
+function genTextSvg(text) {
+  if (!textToSVG) console.error("textLoader not ready");
   const options = {
     x: 0,
     y: 0, fontSize: 4,
     anchor: 'center middle',
-    attributes: { fill: "black" }
+    attributes: { fill: "white" }
   };
-  const svg = textToSVG.getSVG(text, options);
-  return svgToShape(svg);
+  const metrics = textToSVG.getMetrics(text, options);
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${metrics.x} ${metrics.y} ${metrics.width} ${metrics.height}" preserveAspectRatio="xMidYMid meet" height="95%" width="95%">`;
+  svg += textToSVG.getPath(text, options);
+  svg += '</svg>';
+
+  return svg;
 }
 
 function svgToShape(svg) {
@@ -295,6 +310,7 @@ function svgToShape(svg) {
 function extrudeCurrentShape() {
   if (currentObject) scene.remove(currentObject);
   const geometry = new THREE.ExtrudeGeometry(currentShape, {
+    steps: 0,
     depth: 75 / (125 - heightSlider.value),
     bevelEnabled: true,
     bevelThickness: bevelSize,
@@ -346,6 +362,7 @@ function recordState(isNew = false) {
   undoBtn.style.opacity = 1;
   redoBtn.style.opacity = disabledOpacity;
   doneBtn.style.opacity = 1;
+  renderer.domElement.disabled = false;
 }
 
 function undoOp() {
@@ -361,6 +378,7 @@ function undoOp() {
     clearBtn.style.opacity = disabledOpacity;
     undoBtn.style.opacity = disabledOpacity;
     doneBtn.style.opacity = disabledOpacity;
+    renderer.domElement.disabled = true;
   } else {
     if (history[historyStep+1].isNew) {
       currentObject = objectList.pop();
@@ -387,6 +405,7 @@ function redoOp() {
   undoBtn.style.opacity = 1;
   redoBtn.style.opacity = (historyStep === history.length - 1) ? disabledOpacity : 1;
   doneBtn.style.opacity = 1;
+  renderer.domElement.disabled = false;
 }
 
 function clearObjects() {
@@ -405,6 +424,7 @@ function clearObjects() {
   undoBtn.style.opacity = disabledOpacity;
   redoBtn.style.opacity = disabledOpacity;
   doneBtn.style.opacity = disabledOpacity;
+  renderer.domElement.disabled = true;
 
   aspectSlider.disable();
   heightSlider.disable();
