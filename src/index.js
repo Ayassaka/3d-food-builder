@@ -154,20 +154,6 @@ function loadMoveHandlers() {
       tpCache[id] = tp;
     }
   }
-
-  // interaction with UI components
-  renderer.domElement.addEventListener('touchstart', e => {
-    if (renderer.domElement.disabled) return;
-    aspectSlider.disable();
-    heightSlider.disable();
-  })
-  renderer.domElement.addEventListener('touchend', e => {
-    if (renderer.domElement.disabled) return;
-    if (e.touches.length) return;
-    aspectSlider.enable();
-    heightSlider.enable();
-    recordState();
-  })
 }
 
 function loadUI() {
@@ -191,14 +177,14 @@ function loadUI() {
   let prevAspect = 1;
 
   aspectSlider = document.getElementById('aspectSlider');
-  aspectSlider.disable = _ => disableSideBar(aspectSlider);
-  aspectSlider.enable = _ => enableSideBar(aspectSlider);
-  aspectSlider.reset = _ => resetSideBar(aspectSlider);
+  aspectSlider.disable = () => disableSideBar(aspectSlider);
+  aspectSlider.enable = () => enableSideBar(aspectSlider);
+  aspectSlider.reset = () => resetSideBar(aspectSlider);
 
   heightSlider = document.getElementById('heightSlider');
-  heightSlider.disable = _ => disableSideBar(heightSlider);
-  heightSlider.enable = _ => enableSideBar(heightSlider);
-  heightSlider.reset = _ => resetSideBar(heightSlider);
+  heightSlider.disable = () => disableSideBar(heightSlider);
+  heightSlider.enable = () => enableSideBar(heightSlider);
+  heightSlider.reset = () => resetSideBar(heightSlider);
 
   aspectSlider.disable();
   aspectSlider.addEventListener('input', e => {
@@ -211,12 +197,19 @@ function loadUI() {
     prevAspect = newAspect;
   });
   aspectSlider.addEventListener('touchstart', e => {
-    if (aspectSlider.disabled) return;
+    if (aspectSlider.touchId || aspectSlider.disabled) return;
+    aspectSlider.touchId = e.changedTouches[0].identifier;
     heightSlider.disable();
+    renderer.domElement.disabled = true;
+    shapePool.disable();
   })
   aspectSlider.addEventListener('touchend', e => {
     if (aspectSlider.disabled) return;
+    if (!e.changedTouches[0].identifier == aspectSlider.touchId) return;
+    aspectSlider.touchId = null;
     heightSlider.enable();
+    renderer.domElement.disabled = false;
+    shapePool.enable();
     prevAspect = 1;
     aspectSlider.reset();
     recordState();
@@ -228,33 +221,83 @@ function loadUI() {
     extrudeCurrentShape();
   });
   heightSlider.addEventListener('touchstart', e => {
-    if (heightSlider.disabled) return;
+    if (heightSlider.touchId || heightSlider.disabled) return;
+    heightSlider.touchId = e.changedTouches[0].identifier;
     aspectSlider.disable();
+    renderer.domElement.disabled = true;
+    shapePool.disable();
   })
   heightSlider.addEventListener('touchend', e => {
     if (heightSlider.disabled) return;
+    if (!e.changedTouches[0].identifier == heightSlider.touchId) return;
+    heightSlider.touchId = null;
     aspectSlider.enable();
+    renderer.domElement.disabled = false;
+    shapePool.enable();
     recordState();
   })
   
   // shapes
-  const shapes = ['★','●','■','♥','✈','A','全都是学术垃圾'];
+  const shapes = ['★','●','■','▲','♥','✈','A','学术垃圾'];
   const shapePool = document.getElementById('shapePool');
+  shapePool.disable = () => {
+    shapePool.style.opacity = disabledOpacity;
+    shapePool.disabled = true;
+  };
+  shapePool.enable = () => {
+    shapePool.style.opacity = 1;
+    shapePool.disabled = false;
+  };
   shapes.forEach(text => {
     const div = document.createElement('div');
     div.className = 'shape';
     div.innerHTML = genTextSvg(text);
-    // div.addEventListener('touchstart', e => {
-    //   console.log(e.target.innerHTML);
-    // })
-    div.addEventListener('click', e => {
-      console.log(e);
+    div.addEventListener('touchstart', e => {
+      if (shapePool.touchId || shapePool.disabled) return;
+      shapePool.touchId = e.changedTouches[0].identifier;
       addShape(svgToShape(e.currentTarget.innerHTML));
-      recordState(true);
+      
+      shapeSelected = true;
+      aspectSlider.disable();
+      heightSlider.disable();
+      renderer.domElement.disabled = true;
     });
+    div.addEventListener('touchend', e => {
+      if (shapePool.disabled) return;
+      if (!e.changedTouches[0].identifier == shapePool.touchId) return;
+      shapePool.touchId = null;
+      recordState(true);
+      console.log(e);
+      shapeSelected = false;
+      if (historyStep) {
+        aspectSlider.enable();
+        heightSlider.enable();
+        renderer.domElement.disabled = false;
+      }
+    });
+    // div.addEventListener('click', e => {
+    //   if (shapePool.disabled) return;
+    // });
     shapePool.appendChild(div);
   });
 
+    // interaction with UI components
+  renderer.domElement.addEventListener('touchstart', e => {
+    if (renderer.domElement.disabled) return;
+    aspectSlider.disable();
+    heightSlider.disable();
+    shapePool.disable();
+  });
+  renderer.domElement.addEventListener('touchend', e => {
+    if (renderer.domElement.disabled) return;
+    if (e.touches.length) return;
+    aspectSlider.enable();
+    heightSlider.enable();
+    shapePool.enable();
+    recordState();
+  });
+
+  // splash
   if (document.readyState !== "complete") {
     console.warn(`Document ready state is ${document.readyState}.`);
   }
