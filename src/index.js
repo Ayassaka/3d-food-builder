@@ -2,14 +2,16 @@
 
 import * as THREE from 'three';
 import { saveAs } from 'file-saver';
-import font from 'url:./arial-unicode-ms.ttf' // TODO: allow cache
+import font from 'url:./arial-unicode-ms.ttf'; // TODO: allow cache
 
-import STLExporter from './STLExporter'
-import WebkitInputRangeFillLower from './webkit-input-range-fill-lower' 
+import STLExporter from './STLExporter';
+import WebkitInputRangeFillLower from './webkit-input-range-fill-lower' ;
 
 import TextToSVG from 'text-to-svg';
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
+import * as ImageTracer from "imagetracerjs";
+// var potrace = require('potrace');
 
 let cloneDeep = require('lodash.clonedeep');
 
@@ -246,10 +248,10 @@ function loadUI() {
     shapePool.enable();
     recordState();
   })
-  
+
 
   // Shape Pool
-  const shapes = ['★','●','■','▲','♥','✈','A','学术垃圾'];
+  const shapes = ['■','□','●','▲','♥','★','✈','JI','学术垃圾'].reverse();
   const shapePool = document.getElementById('shapePool');
   shapePool.disable = () => {
     shapePool.style.opacity = disabledOpacity;
@@ -262,10 +264,14 @@ function loadUI() {
   let shapeInstantiated;
   const instantiateY = window.innerHeight - footer.offsetHeight;
   let prevScrollLeft;
-  shapes.forEach(text => {
+  shapes.forEach(addTextShapeBtn);
+
+
+  // Add shape
+  function createShapeBtn(svg) {
     const div = document.createElement('div');
     div.className = 'shape';
-    div.innerHTML = genTextSvg(text);
+    div.innerHTML = svg;
     div.addEventListener('touchstart', e => {
       if (shapePool.touchId || shapePool.disabled) return;
       shapePool.touchId = e.changedTouches[0].identifier;
@@ -315,7 +321,48 @@ function loadUI() {
       }
       renderer.domElement.disabled = false;
     });
-    shapePool.appendChild(div);
+    document.getElementById('shapePoolSep').after(div);
+  }
+
+  function addTextShapeBtn(text) {
+    const svg = genTextSvg(text);
+    // console.log(svg);
+    createShapeBtn(svg);
+  }
+
+  document.getElementById('addText').addEventListener('click', e => {
+    const text =  window.prompt("New Text Shape","");
+    addTextShapeBtn(text);
+  });
+
+
+  document.getElementById('addImage').addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) {
+      let reader = new FileReader();
+      let canvas = document.createElement('canvas');
+      let context = canvas.getContext('2d');
+
+      reader.onload = function (e) {
+        let img = new Image();
+        img.src = reader.result;
+        img.onload = function () {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          context.drawImage(this, 0, 0, canvas.width, canvas.height);
+          let imgd = ImageTracer.getImgdata(canvas);
+            
+          // Synchronous tracing to tracedata
+          let svg = ImageTracer.imagedataToSVG(imgd, {
+            colorsampling:0, numberofcolors:2,
+            pal: [{r:0, g:0, b:0, a:0}, {r:255, g:255, b:255, a:0}],
+            strokewidth: 0,
+          });
+          
+          console.log(svg);
+        }
+      }
+      reader.readAsDataURL(e.target.files[0]);
+    }
   });
 
 
@@ -421,6 +468,7 @@ function transformShape(shape, t) {
       if (c.v0) t(c.v0);
       t(c.v1);
       t(c.v2);
+      if (c.v3) t(c.v3);
     });
     if (s.holes) transformShape(s.holes, t);
   });
