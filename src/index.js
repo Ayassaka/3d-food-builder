@@ -10,8 +10,10 @@ import WebkitInputRangeFillLower from './webkit-input-range-fill-lower' ;
 import TextToSVG from 'text-to-svg';
 
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader";
-import * as ImageTracer from "imagetracerjs";
-// var potrace = require('potrace');
+
+import Potrace from './Potrace';
+import * as Jimp from "jimp";
+// let potrace = require('potrace');
 
 let cloneDeep = require('lodash.clonedeep');
 
@@ -31,6 +33,7 @@ let historyStep = 0;
 let history = [{shape: null}];
 
 const maxSize = 10;
+const imageQuality = 100;
 
 const urlParams = new URLSearchParams(window.location.search);
 const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 2;
@@ -339,29 +342,27 @@ function loadUI() {
   document.getElementById('addImage').addEventListener('change', e => {
     if (e.target.files && e.target.files[0]) {
       let reader = new FileReader();
-      let canvas = document.createElement('canvas');
-      let context = canvas.getContext('2d');
 
       reader.onload = function (e) {
-        let img = new Image();
-        img.src = reader.result;
-        img.onload = function () {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          context.drawImage(this, 0, 0, canvas.width, canvas.height);
-          let imgd = ImageTracer.getImgdata(canvas);
-            
-          // Synchronous tracing to tracedata
-          let svg = ImageTracer.imagedataToSVG(imgd, {
-            colorsampling:0, numberofcolors:2,
-            pal: [{r:0, g:0, b:0, a:0}, {r:255, g:255, b:255, a:0}],
-            strokewidth: 0,
-          });
-          
-          console.log(svg);
-        }
+        Jimp.read(e.target.result, (err, img) => {
+          img.scaleToFit(imageQuality, imageQuality, (err, img) => {
+            let params = {
+              width: img.bitmap.width / imageQuality * maxSize / 2,
+              height: img.bitmap.height / imageQuality * maxSize / 2,
+              color: '#fff',
+            }
+            const potrace = new Potrace(params);
+
+            potrace.loadImage(img, function(err) {
+              if (err) throw err;
+              let svg = potrace.getSVG();
+              svg = svg.replace(/width="[^"]*" height="[^"]*"/, 'preserveAspectRatio="xMidYMid meet" width="100%" height="100%"');
+              createShapeBtn(svg);
+            });
+          })
+        });
       }
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsArrayBuffer(e.target.files[0]);
     }
   });
 
