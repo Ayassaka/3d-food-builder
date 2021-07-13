@@ -69,7 +69,7 @@ Potrace.prototype = {
     var self = this,
         threshold = this._params.threshold,
         blackOnWhite = this._params.blackOnWhite,
-        blackMap,
+        blackMap, originalBlackMap,
         currentPoint = new Point(0, 0),
         path;
 
@@ -84,6 +84,8 @@ Potrace.prototype = {
 
       return pastTheThreshold ? 0 : 1;
     });
+
+    originalBlackMap = blackMap.copy(x => x);
       
     /**
      * finds next black pixel of the image
@@ -131,7 +133,7 @@ Potrace.prototype = {
           diry = 1,
           tmp;
 
-      path.sign = blackMap.getValueAt(point.x, point.y) ? "+" : "-";
+      path.sign = originalBlackMap.getValueAt(point.x, point.y) ? "+" : "-";
 
       while (1) {
         path.pt.push(new Point(x, y));
@@ -963,7 +965,8 @@ Potrace.prototype = {
       bestPolygon(path);
       adjustVertices(path);
 
-      if (path.sign === "-") {
+      console.log(path.sign);
+      if (path.sign === "+") {
         reverse(path);
       }
 
@@ -1101,7 +1104,7 @@ Potrace.prototype = {
       return utils.renderCurve(path.curve, scale);
     }).join(' ');
 
-    tag += '" stroke="none" fill="' + fillColor + '" fill-rule="evenodd"/>';
+    tag += '" stroke="none" fill="' + fillColor + '"/>';
 
     return tag;
   },
