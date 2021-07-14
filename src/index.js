@@ -35,7 +35,7 @@ const urlParams = new URLSearchParams(window.location.search);
 // dimensions
 const spaceSize = urlParams.has('spaceSize') ? parseFloat(urlParams.get('spaceSize')) : 100.0;
 const bevelSize = urlParams.has('bevelSize') ? parseFloat(urlParams.get('bevelSize')) : 0.02 * spaceSize;
-const maxShapeSize = urlParams.has('maxShapeSize') ? parseFloat(urlParams.get('maxShapeSize')) : 0.5 * spaceSize;
+const shapeSize = urlParams.has('shapeSize') ? parseFloat(urlParams.get('shapeSize')) : 0.5 * spaceSize;
 const previewLoopRadius = urlParams.has('previewLoopRadius') ? parseFloat(urlParams.get('previewLoopRadius')) : 0.2 * spaceSize;
 const cameraHeight = urlParams.has('cameraHeight') ? parseFloat(urlParams.get('cameraHeight')) : 1.5 * spaceSize;
 const minHeight = urlParams.has('minHeight') ? parseFloat(urlParams.get('minHeight')) : 0.05 * spaceSize;
@@ -347,7 +347,7 @@ function loadUI() {
       attributes: { fill: "white" }
     };
     const metrics = textToSVG.getMetrics(text, options);
-    const outputSize = maxShapeSize;
+    const outputSize = shapeSize;
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-outputSize/2} ${-outputSize/2} ${outputSize} ${outputSize}">`;
     options.fontSize = outputSize / Math.max(metrics.width, metrics.height);
     svg += textToSVG.getPath(text, options);
@@ -362,8 +362,8 @@ function loadUI() {
       Jimp.read(e.target.result, (err, img) => {
         img.scaleToFit(imageQuality, imageQuality, (err, img) => {
           let params = {
-            width: img.bitmap.width / imageQuality * maxShapeSize,
-            height: img.bitmap.height / imageQuality * maxShapeSize,
+            width: img.bitmap.width / imageQuality * shapeSize,
+            height: img.bitmap.height / imageQuality * shapeSize,
             color: '#fff',
           }
           const potrace = new Potrace(params);
