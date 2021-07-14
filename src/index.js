@@ -20,7 +20,6 @@ let cloneDeep = require('lodash.clonedeep');
 
 /****** Globals ***************************************************************/
 
-const previewLoopRadius = 4;
 
 let scene, renderer, rendererWidth, footer, rendererHeight, camera, material;
 
@@ -32,14 +31,20 @@ let disabledOpacity = 0.25;
 let historyStep = 0;
 let history = [{shape: null}];
 
-const maxSize = 10;
-const imageQuality = 100;
-
 const urlParams = new URLSearchParams(window.location.search);
-const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 2;
-const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .2;
-const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
+// dimensions
+const spaceSize = urlParams.has('spaceSize') ? urlParams.get('spaceSize') : 100;
+const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .02 * spaceSize;
+const maxShapeSize = urlParams.has('maxShapeSize') ? urlParams.get('maxShapeSize') : 0.5 * spaceSize;
+const previewLoopRadius = urlParams.has('previewLoopRadius') ? urlParams.get('previewLoopRadius') : 0.2 * spaceSize;
+const cameraHeight = urlParams.has('cameraHeight') ? urlParams.get('cameraHeight') : 1.5 * spaceSize;
+const minHeight = urlParams.has('minHeight') ? urlParams.get('minHeight') : 0.05 * spaceSize;
+const maxHeight = urlParams.has('maxHeight') ? urlParams.get('maxHeight') : 0.25 * spaceSize;
 
+//quality
+const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 3;
+const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
+const imageQuality = urlParams.has('imageQuality') ? urlParams.get('imageQuality') : 100;
 
 /****** Mains *****************************************************************/
 
@@ -62,10 +67,10 @@ function loadRenderer() {
   renderer.setSize(rendererWidth, rendererHeight);
   renderer.shadowMap.enabled = true;
   
-  camera = new THREE.PerspectiveCamera(50, rendererWidth / rendererHeight, 0.01, 25);
+  camera = new THREE.PerspectiveCamera(50, rendererWidth / rendererHeight, spaceSize, 2 * spaceSize);
   camera.position.x = previewLoopRadius;
   camera.position.y = 0;
-  camera.position.z = previewLoopRadius * 4;
+  camera.position.z = cameraHeight;
   camera.lookAt(0, 0, 0);
   renderer.setAnimationLoop(time => {
     camera.position.x = previewLoopRadius * Math.cos( time / 2000 );
@@ -80,7 +85,7 @@ function loadRenderer() {
   // hemiLight.castShadow = true;
   scene.add(hemiLight);
   let light = new THREE.PointLight(0xffffff, 1);
-  light.position.set(-maxSize * 1.5, maxSize * 1.5, maxSize * 1.5);
+  light.position.set(-spaceSize * 1.5, spaceSize * 1.5, spaceSize * 1.5);
   light.castShadow = true;
   light.shadow.mapSize.width = shadowMapSize;
   light.shadow.mapSize.height = shadowMapSize;
@@ -97,7 +102,7 @@ function loadMaterial() {
 }
 
 function loadGround() {
-  const geometry = new THREE.PlaneGeometry(maxSize, maxSize, 10, 10);
+  const geometry = new THREE.PlaneGeometry(spaceSize, spaceSize, 10, 10);
   const wireframe = new THREE.WireframeGeometry(geometry);
   const line = new THREE.LineSegments( wireframe );
   line.material.depthTest = true;
@@ -139,21 +144,21 @@ function loadUI() {
     if (movedTps.length === 1) {
       let p = movedTps[0];
         transformShape(currentShape, v => { 
-          v.x += (p.clientX - tpCache[p.identifier].clientX) / rendererHeight * maxSize,
-          v.y -= (p.clientY - tpCache[p.identifier].clientY) / rendererHeight * maxSize
+          v.x += (p.clientX - tpCache[p.identifier].clientX) / rendererHeight * spaceSize,
+          v.y -= (p.clientY - tpCache[p.identifier].clientY) / rendererHeight * spaceSize
         });
       extrudeCurrentShape();
     } else if (movedTps.length === 2) {
       let p1 = movedTps[0];
       let p2 = movedTps[1];
-      let x1 = tpCache[p1.identifier].clientX / rendererHeight * maxSize - maxSize / 2;
-      let x2 = tpCache[p2.identifier].clientX / rendererHeight * maxSize - maxSize / 2;
-      let y1 = - tpCache[p1.identifier].clientY / rendererHeight * maxSize + maxSize / 2;
-      let y2 = - tpCache[p2.identifier].clientY / rendererHeight * maxSize + maxSize / 2;
-      let x3 = p1.clientX / rendererHeight * maxSize - maxSize / 2;
-      let x4 = p2.clientX / rendererHeight * maxSize - maxSize / 2;
-      let y3 = - p1.clientY / rendererHeight * maxSize + maxSize / 2;
-      let y4 = - p2.clientY / rendererHeight * maxSize + maxSize / 2;
+      let x1 = tpCache[p1.identifier].clientX / rendererHeight * spaceSize - spaceSize / 2;
+      let x2 = tpCache[p2.identifier].clientX / rendererHeight * spaceSize - spaceSize / 2;
+      let y1 = - tpCache[p1.identifier].clientY / rendererHeight * spaceSize + spaceSize / 2;
+      let y2 = - tpCache[p2.identifier].clientY / rendererHeight * spaceSize + spaceSize / 2;
+      let x3 = p1.clientX / rendererHeight * spaceSize - spaceSize / 2;
+      let x4 = p2.clientX / rendererHeight * spaceSize - spaceSize / 2;
+      let y3 = - p1.clientY / rendererHeight * spaceSize + spaceSize / 2;
+      let y4 = - p2.clientY / rendererHeight * spaceSize + spaceSize / 2;
       let n1x = x2 - x1;
       let n1y = y2 - y1;
       let n2x = x4 - x3;
@@ -295,8 +300,8 @@ function loadUI() {
         shapeInstantiated = true;
         currentShape = svgToShape(e.currentTarget.innerHTML);
         transformShape(currentShape, v => {
-          v.x = v.x + (p.clientX / rendererHeight - 0.5) * maxSize;
-          v.y = v.y - (p.clientY / rendererHeight - 0.5) * maxSize;
+          v.x = v.x + (p.clientX / rendererHeight - 0.5) * spaceSize;
+          v.y = v.y - (p.clientY / rendererHeight - 0.5) * spaceSize;
         })
         if (currentObject) objectList.push(currentObject);
         currentObject = null;
@@ -328,9 +333,45 @@ function loadUI() {
   }
 
   function addTextShapeBtn(text) {
-    const svg = genTextSvg(text);
-    // console.log(svg);
+    if (!textToSVG) console.error("textLoader not ready");
+    const options = {
+      x: 0,
+      y: 0, fontSize: 1,
+      anchor: 'center middle',
+      attributes: { fill: "white" }
+    };
+    const metrics = textToSVG.getMetrics(text, options);
+    const outputSize = maxShapeSize;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-outputSize/2} ${-outputSize/2} ${outputSize} ${outputSize}">`;
+    options.fontSize = outputSize / Math.max(metrics.width, metrics.height);
+    svg += textToSVG.getPath(text, options);
+    svg += '</svg>';
     createShapeBtn(svg);
+  }
+
+  function addImageShapeBtn(img) {
+    let reader = new FileReader();
+
+    reader.onload = function (e) {
+      Jimp.read(e.target.result, (err, img) => {
+        img.scaleToFit(imageQuality, imageQuality, (err, img) => {
+          let params = {
+            width: img.bitmap.width / imageQuality * maxShapeSize,
+            height: img.bitmap.height / imageQuality * maxShapeSize,
+            color: '#fff',
+          }
+          const potrace = new Potrace(params);
+
+          potrace.loadImage(img, function(err) {
+            if (err) throw err;
+            let svg = potrace.getSVG();
+            svg = svg.replace(/width="[^"]*" height="[^"]*"/, 'preserveAspectRatio="xMidYMid meet" width="100%" height="100%"');
+            createShapeBtn(svg);
+          });
+        })
+      });
+    }
+    reader.readAsArrayBuffer(img);
   }
 
   document.getElementById('addText').addEventListener('click', e => {
@@ -341,28 +382,7 @@ function loadUI() {
 
   document.getElementById('addImage').addEventListener('change', e => {
     if (e.target.files && e.target.files[0]) {
-      let reader = new FileReader();
-
-      reader.onload = function (e) {
-        Jimp.read(e.target.result, (err, img) => {
-          img.scaleToFit(imageQuality, imageQuality, (err, img) => {
-            let params = {
-              width: img.bitmap.width / imageQuality * maxSize / 2,
-              height: img.bitmap.height / imageQuality * maxSize / 2,
-              color: '#fff',
-            }
-            const potrace = new Potrace(params);
-
-            potrace.loadImage(img, function(err) {
-              if (err) throw err;
-              let svg = potrace.getSVG();
-              svg = svg.replace(/width="[^"]*" height="[^"]*"/, 'preserveAspectRatio="xMidYMid meet" width="100%" height="100%"');
-              createShapeBtn(svg);
-            });
-          })
-        });
-      }
-      reader.readAsArrayBuffer(e.target.files[0]);
+      addImageShapeBtn(e.target.files[0]);
     }
   });
 
@@ -413,24 +433,6 @@ function loadUI() {
 
 /****** Modeling **************************************************************/
 
-function genTextSvg(text) {
-  if (!textToSVG) console.error("textLoader not ready");
-  const options = {
-    x: 0,
-    y: 0, fontSize: 1,
-    anchor: 'center middle',
-    attributes: { fill: "white" }
-  };
-  const metrics = textToSVG.getMetrics(text, options);
-  const outputSize = 5;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-outputSize/2} ${-outputSize/2} ${outputSize} ${outputSize}">`;
-  options.fontSize = outputSize / Math.max(metrics.width, metrics.height);
-  svg += textToSVG.getPath(text, options);
-  svg += '</svg>';
-
-  return svg;
-}
-
 function svgToShape(svg) {
   const loader = new SVGLoader();
   const svgData = loader.parse(svg);
@@ -447,7 +449,7 @@ function extrudeCurrentShape() {
   if (currentObject) scene.remove(currentObject);
   const geometry = new THREE.ExtrudeGeometry(currentShape, {
     steps: 0,
-    depth: 75 / (125 - heightSlider.value),
+    depth: lerp(minHeight, maxHeight, heightSlider.value / 100.0),
     bevelEnabled: true,
     bevelThickness: bevelSize,
     bevelSize: bevelSize,
@@ -475,6 +477,9 @@ function transformShape(shape, t) {
   });
 }
 
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
 
 /****** History ***************************************************************/
 

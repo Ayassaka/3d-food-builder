@@ -965,7 +965,6 @@ Potrace.prototype = {
       bestPolygon(path);
       adjustVertices(path);
 
-      console.log(path.sign);
       if (path.sign === "+") {
         reverse(path);
       }
