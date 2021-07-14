@@ -33,18 +33,21 @@ let history = [{shape: null}];
 
 const urlParams = new URLSearchParams(window.location.search);
 // dimensions
-const spaceSize = urlParams.has('spaceSize') ? urlParams.get('spaceSize') : 100;
-const bevelSize = urlParams.has('bevelSize') ? urlParams.get('bevelSize') : .02 * spaceSize;
-const maxShapeSize = urlParams.has('maxShapeSize') ? urlParams.get('maxShapeSize') : 0.5 * spaceSize;
-const previewLoopRadius = urlParams.has('previewLoopRadius') ? urlParams.get('previewLoopRadius') : 0.2 * spaceSize;
-const cameraHeight = urlParams.has('cameraHeight') ? urlParams.get('cameraHeight') : 1.5 * spaceSize;
-const minHeight = urlParams.has('minHeight') ? urlParams.get('minHeight') : 0.05 * spaceSize;
-const maxHeight = urlParams.has('maxHeight') ? urlParams.get('maxHeight') : 0.25 * spaceSize;
+const spaceSize = urlParams.has('spaceSize') ? parseFloat(urlParams.get('spaceSize')) : 100.0;
+const bevelSize = urlParams.has('bevelSize') ? parseFloat(urlParams.get('bevelSize')) : 0.02 * spaceSize;
+const maxShapeSize = urlParams.has('maxShapeSize') ? parseFloat(urlParams.get('maxShapeSize')) : 0.5 * spaceSize;
+const previewLoopRadius = urlParams.has('previewLoopRadius') ? parseFloat(urlParams.get('previewLoopRadius')) : 0.2 * spaceSize;
+const cameraHeight = urlParams.has('cameraHeight') ? parseFloat(urlParams.get('cameraHeight')) : 1.5 * spaceSize;
+const minHeight = urlParams.has('minHeight') ? parseFloat(urlParams.get('minHeight')) : 0.05 * spaceSize;
+const maxHeight = urlParams.has('maxHeight') ? parseFloat(urlParams.get('maxHeight')) : 0.25 * spaceSize;
 
 //quality
 const bevelSegments = urlParams.has('bevelSegments') ? urlParams.get('bevelSegments') : 3;
 const shadowMapSize = urlParams.has('shadowMapSize') ? urlParams.get('shadowMapSize') : 1024;
 const imageQuality = urlParams.has('imageQuality') ? urlParams.get('imageQuality') : 100;
+
+// misc
+const lightIntensity = urlParams.has('lightIntensity') ? parseFloat(urlParams.get('lightIntensity')) : 1;
 
 /****** Mains *****************************************************************/
 
@@ -84,11 +87,14 @@ function loadRenderer() {
   let hemiLight = new THREE.HemisphereLight(0xffeeb1, 0x080820, 1);
   // hemiLight.castShadow = true;
   scene.add(hemiLight);
-  let light = new THREE.PointLight(0xffffff, 1);
+  let light = new THREE.PointLight(0xffffff, lightIntensity);
   light.position.set(-spaceSize * 1.5, spaceSize * 1.5, spaceSize * 1.5);
   light.castShadow = true;
   light.shadow.mapSize.width = shadowMapSize;
   light.shadow.mapSize.height = shadowMapSize;
+  // set threejs shadow range
+  light.shadow.camera.near = 0.1;
+  light.shadow.camera.far = spaceSize * 5;
   scene.add(light);
 }
 
