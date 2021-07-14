@@ -265,7 +265,7 @@ function loadUI() {
 
 
   // Shape Pool
-  const shapes = ['■','□','●','▲','♥','★','✈','JI','学术垃圾'].reverse();
+  const shapes = ['\u25A0', '\u25A1', '\u25CF', '\u25B2', '\u2665', '\u2605', '\u2708', 'JI', '\u5B66\u672F\u5783\u573E'].reverse();
   const shapePool = document.getElementById('shapePool');
   shapePool.disable = () => {
     shapePool.style.opacity = disabledOpacity;
