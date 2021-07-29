@@ -4,7 +4,8 @@ import os
 from flask import Flask, request, send_from_directory
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = './uploads'
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['STATIC_FOLDER'] = 'dist'
 
 @app.route('/', methods=['GET'])
 def index():
@@ -12,7 +13,7 @@ def index():
 
 @app.route('/builder/<path:path>', methods=['GET'])
 def serve_statics(path):
-    return send_from_directory('dist', path)
+    return send_from_directory(app.config['STATIC_FOLDER'], path)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
