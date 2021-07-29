@@ -3,7 +3,8 @@
   "description": "A simple modelling app for UMJI VE450 food 3d printer project.",
   "scripts": {
     "start": "parcel serve ./src/index.html",
-    "deploy": "rm -rf dist && parcel build ./src/index.html --public-url \"https://jz-wenxuan.github.io/3d-food-builder/\" && gh-pages -d dist"
+    "deploy": "rm -rf dist && parcel build ./src/index.html --public-url \"./\" && gh-pages -d dist",
+    "server": "rm -rf dist && parcel build ./src/index.html --public-url \"./\" && python server.py"
   },
   "dependencies": {
     "file-saver": "^2.0.5",

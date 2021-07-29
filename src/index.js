@@ -588,6 +588,26 @@ function saveObjects() {
   if (doneBtn.style.opacity != 1) return;
   let exporter = new STLExporter();
   let str = exporter.parse( scene ); // Export the scene
-  var blob = new Blob( [str], { type : 'text/plain' } ); // Generate Blob from the string
-  saveAs( blob, 'file.stl' ); //Save the Blob to file.stl
+  let blob = new Blob([str], {type: 'text/plain'});
+
+  let formdata = new FormData();
+  formdata.append("file", blob, "food.stl");
+
+  var requestOptions = {
+    method: 'POST',
+    body: formdata,
+    redirect: 'follow'
+  };
+
+  fetch("/upload", requestOptions).then(function(response) {
+    if (response.status === 200) {
+      if (confirm('Upload successful.\nAlso save the model to your device?')) {
+        saveAs( blob, 'your-food-order.stl' );
+      }
+    } else {
+      if (confirm('Upload failed.\nSave the model to your device instead?')) {
+        saveAs( blob, 'your-food-order.stl' );
+      }
+    }
+  });
 }
